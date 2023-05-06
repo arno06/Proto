@@ -1,0 +1,51 @@
+<html>
+    <head>
+        <title>Proto</title>
+        <style>
+            *{font-size: 12px;font-family: Arial, sans-serif;user-select: none;}
+            html, body{margin:0;padding:0;width:100%;height:100%;}
+            body{display:flex;}
+            body .main{flex:1 1 auto;overflow: hidden;}
+            body .main .scene{display:flex;justify-content: center;align-items: center;height:100%;gap: 10px;}
+            body .main .scene .screen{width:480px;min-height:600px;border:solid 1px #eee;background:#fff;position:relative;overflow-x: hidden;overflow-y: auto;}
+            body .main .scene .screen:before{position:absolute;content:attr(data-name);transform: translateY(-100%);}
+            body .main .scene .screen:hover .element:hover{resize: both;}
+            body .side{flex:0 0 auto;width:200px;border-left:solid 1px #888888;}
+            body .side ul{list-style: none;padding:0;margin:0;}
+            body .side ul li{padding:10px;}
+            body .side ul li:hover{background:#eee;}
+            body .main .scene .screen[data-drop].droppable, [data-drop].droppable{border:solid 1px gray;}
+            body .main .scene .screen[data-drop].droppable.dragover{border:solid 1px lightgreen;}
+            .element{position:absolute;border:solid 1px transparent;overflow:auto;}
+            .element:hover{border-color:lightgreen;}
+            .element:hover::before{display:block;content:'';width:calc(100% - 10px);height:calc(100% - 10px);background:transparent;position:absolute;left:0;top:0;cursor:move;}
+            .button{display:flex;min-width: 50px;min-height: 20px;border:solid #999 1px;padding:5px 10px;align-items: center;justify-content: center;border-radius: 3px;background:rgba(127, 127, 127, .5);color:#eee;}
+            .img{min-width: 50px;min-height: 50px;background:url("assets/default_image.svg") no-repeat center center;display:inline-block;border:solid 3px black;}
+            .input:hover, .input{border:solid 1px #888;background:#efefef;color:#888;min-width:150px;min-height: 20px;display:flex;align-items: center;padding:0 0.5em;border-radius:4px;}
+            .block{min-width: 100px;min-height:50px;border:solid 2px #000;}
+            .guide{position:absolute;height:100%;top:0;left:0;width:1px;background:#aaa;pointer-events: none;}
+        </style>
+        <script src="js/Main.js"></script>
+    </head>
+    <body>
+        <div class="main">
+            <div class="scene">
+                <div class="screen" data-drop data-name="Connexion">
+
+                </div>
+                <div class="screen" data-drop data-name="Accueil">
+
+                </div>
+            </div>
+        </div>
+        <div class="side">
+            <ul>
+                <li><div draggable="true" class="block"></div></li>
+                <li><p draggable="true">Text</p></li>
+                <li><div draggable="true" class="img"></div></li>
+                <li><div draggable="true" class="input">Input</div></li>
+                <li><div draggable="true" class="button">Button</div></li>
+            </ul>
+        </div>
+    </body>
+</html>
