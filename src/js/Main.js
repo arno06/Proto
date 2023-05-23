@@ -1,9 +1,124 @@
-(function(){
+﻿(function(){
+
+    const inputs = {
+        'width':{
+            'label':'Largeur',
+            'nodeName':'input',
+            'attributes':{
+                'type':'text'
+            },
+            'valAttr':'value',
+            'getValue':(pEl, pSelected)=>{pEl.value = pSelected.offsetWidth;}
+        },
+        'height':{
+            'label':'Hauteur',
+            'nodeName':'input',
+            'attributes':{
+                'type':'text'
+            },
+            'getValue':(pEl, pSelected)=>{pEl.value = pSelected.offsetHeight;}
+        },
+        'font':{
+            'label':'Police',
+            'nodeName':'select',
+            'attributes':{
+                'innerHTML':'<option value="Arial, sans-serif">Sans-sérif</option><option value="Times, serif">Sérif</option>'
+            },
+            'getValue':(pEl, pSelected)=>{
+
+            }
+        },
+        'fontsize':{
+            'label':'Taille de police',
+            'nodeName':'select',
+            'attributes':{
+                'innerHTML':'<option value="10px">Petite</option><option value="14px">Moyenne</option><option value="18px">Grande</option>'
+            },
+            'getValue':(pEl, pSelected)=>{
+
+            }
+        },
+        'content':{
+            'label':'Texte',
+            'nodeName':'textarea',
+            'getValue':(pEl, pSelected)=>{pEl.innerHTML = pSelected.innerHTML;}
+        },
+        'delete':{
+            'nodeName':'button',
+            'attributes':{
+                'innerHTML':'Supprimer',
+                'class':'delete',
+                'onclick':()=>{
+                    selectedElement.remove();
+                    unselect();
+                    return false;
+                }
+            },
+        }
+    };
+
+    const props = {
+        'block':['width', 'height', 'delete'],
+        'text':['width', 'height', 'content', 'font', 'fontsize', 'delete'],
+        'img':['width', 'height', 'delete'],
+        'input':['width', 'height', 'content', 'delete'],
+        'button':['width', 'height', 'content', 'delete']
+    };
 
     let clone = null;
+    let selectedElement = null;
 
     function init(){
         new InventoryHandler();
+        document.addEventListener('select', blockSelectedHandler);
+    }
+
+    function blockSelectedHandler(e){
+        selectedElement = e.detail.element;
+        const type = e.detail.element.dataset.type;
+        document.querySelector('.editor .name').innerHTML = type;
+
+        const form = document.querySelector('.editor form');
+        form.innerHTML = '';
+
+        if(!props[type]){
+            console.log("Type non décrit "+type);
+            return;
+        }
+
+        props[type].forEach((pInput)=>{
+            if(!inputs[pInput]){
+                console.log("Input non décrit "+pInput);
+                return
+            }
+            let input = inputs[pInput];
+            const d = document.createElement('div');
+
+            if(input.label){
+                const label = document.createElement('span');
+                label.innerHTML = input.label+' : ';
+                d.appendChild(label);
+            }
+
+            const inp = document.createElement(input.nodeName);
+            for(let i in input.attributes){
+                if(!input.attributes.hasOwnProperty(i)){
+                    continue;
+                }
+                inp[i] = input.attributes[i];
+            }
+            if(input.getValue){
+                input.getValue(inp, selectedElement);
+            }
+            d.appendChild(inp);
+
+            form.appendChild(d);
+        });
+    }
+
+    function unselect(){
+        document.querySelector('.editor .name').innerHTML = '';
+        document.querySelector('.editor form').innerHTML = '';
     }
 
     class InventoryHandler{
@@ -74,6 +189,7 @@
             this.magnet_treshold = 5;
             this.guides = [];
             this.domElement = pElement;
+            this.domElement.dataset.type = pElement.className;
             this.domElement.classList.add('element');
             this._mouseMovehandler = this.mouseMoveHandler.bind(this);
             this._mouseUpHandler = this.mouseUpHandler.bind(this);
@@ -87,8 +203,11 @@
             e.stopImmediatePropagation();
             e.stopPropagation();
             if(!withinMoveZone){
+                this.domElement.classList.remove("selected");
                 return;
             }
+            document.querySelectorAll(".element.selected").forEach((el)=>el.classList.remove("selected"));
+            this.domElement.classList.add("selected");
             document.addEventListener('mousemove', this._mouseMovehandler);
             document.addEventListener('mouseup', this._mouseUpHandler);
 
@@ -124,6 +243,7 @@
         }
 
         mouseMoveHandler(e){
+            this.domElement.classList.remove("selected");
             let parentRect = this.domElement.parentNode.getBoundingClientRect();
             let rect = this.domElement.getBoundingClientRect();
             let val = {
@@ -163,6 +283,10 @@
                 elt.remove();
             });
             this.guides = [];
+            if(this.domElement.classList.contains("selected")){
+                document.dispatchEvent(new CustomEvent('select', {detail:{element:this.domElement}}));
+            }
+            document.querySelectorAll('.dragover').forEach((el)=>el.classList.remove('dragover'));
         }
     }
 
