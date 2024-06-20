@@ -1,11 +1,33 @@
 ﻿(function(){
 
     const inputs = {
+        'img':{
+            'label':'Image',
+            'nodeName':'input',
+            'attributes':{
+                'type':'file',
+                'accept':'.jpg, .jpeg, .gif, .svg, .webp, .png',
+                'onchange':(e)=>{
+                    let file = e.currentTarget.files[0];
+                    if(!file.type.startsWith('image/')){
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (event)=>{
+                        selectedElement.style.backgroundImage = "url('"+event.target.result+"')";
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        },
         'width':{
             'label':'Largeur',
             'nodeName':'input',
             'attributes':{
-                'type':'text'
+                'type':'text',
+                'onkeyup':(e)=>{
+                    selectedElement.style.width = e.currentTarget.value+'px';
+                }
             },
             'valAttr':'value',
             'getValue':(pEl, pSelected)=>{pEl.value = pSelected.offsetWidth;}
@@ -14,7 +36,10 @@
             'label':'Hauteur',
             'nodeName':'input',
             'attributes':{
-                'type':'text'
+                'type':'text',
+                'onkeyup':(e)=>{
+                    selectedElement.style.height = e.currentTarget.value+'px';
+                }
             },
             'getValue':(pEl, pSelected)=>{pEl.value = pSelected.offsetHeight;}
         },
@@ -44,25 +69,54 @@
             'getValue':(pEl, pSelected)=>{pEl.innerHTML = pSelected.innerHTML;}
         },
         'delete':{
-            'nodeName':'button',
+            'nodeName':'div',
             'attributes':{
                 'innerHTML':'Supprimer',
-                'class':'delete',
+                'className':'button',
                 'onclick':()=>{
                     selectedElement.remove();
                     unselect();
                     return false;
                 }
             },
+        },
+        'foreground':{
+            'nodeName':'div',
+            'attributes':{
+                'innerHTML':'Mettre au premier plan',
+                'className':'button',
+                'onclick':()=>{
+                    let parent = selectedElement.parentNode;
+                    selectedElement.remove();
+                    parent.insertAdjacentElement('beforeend', selectedElement);
+                    return false;
+                }
+            },
+        },
+        'background':{
+            'nodeName':'div',
+            'attributes':{
+                'innerHTML':'Mettre en arrière plan',
+                'className':'button',
+                'onclick':()=>{
+                    let parent = selectedElement.parentNode;
+                    selectedElement.remove();
+                    parent.insertAdjacentElement('afterbegin', selectedElement);
+                    return false;
+                }
+            },
         }
     };
 
+    let default_style = ['width', 'height'];
+    let default_actions = ['foreground', 'background', 'delete'];
+
     const props = {
-        'block':['width', 'height', 'delete'],
-        'text':['width', 'height', 'content', 'font', 'fontsize', 'delete'],
-        'img':['width', 'height', 'delete'],
-        'input':['width', 'height', 'content', 'delete'],
-        'button':['width', 'height', 'content', 'delete']
+        'block':[].concat(default_style, default_actions),
+        'text':['width', 'height', 'content', 'font', 'fontsize','foreground', 'background', 'delete'],
+        'img':['img'].concat(default_style, default_actions),
+        'input':['width', 'height', 'content', 'foreground', 'background', 'delete'],
+        'button':['width', 'height', 'content', 'foreground', 'background', 'delete']
     };
 
     let clone = null;
@@ -70,7 +124,8 @@
 
     function init(){
         new InventoryHandler();
-        document.addEventListener('select', blockSelectedHandler);
+        document.addEventListener(EditableElementEvent.SELECT, blockSelectedHandler);
+        document.addEventListener(EditableElementEvent.UNSELECT, unselect);
     }
 
     function blockSelectedHandler(e){
@@ -114,6 +169,10 @@
 
             form.appendChild(d);
         });
+    }
+
+    function update(pElement){
+
     }
 
     function unselect(){
@@ -284,11 +343,18 @@
             });
             this.guides = [];
             if(this.domElement.classList.contains("selected")){
-                document.dispatchEvent(new CustomEvent('select', {detail:{element:this.domElement}}));
+                document.dispatchEvent(new CustomEvent(EditableElementEvent.SELECT, {detail:{element:this.domElement}}));
+            }else{
+                document.dispatchEvent(new CustomEvent(EditableElementEvent.UNSELECT, {detail:{element:this.domElement}}));
             }
             document.querySelectorAll('.dragover').forEach((el)=>el.classList.remove('dragover'));
         }
     }
+
+    const EditableElementEvent = {
+        SELECT:'item_selected',
+        UNSELECT:'item_unselected'
+    };
 
     window.addEventListener('DOMContentLoaded', init);
 })();
