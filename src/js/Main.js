@@ -188,6 +188,8 @@
                 e.addEventListener('dragend', this.stopDragHandler.bind(this));
             });
 
+            this.elements = {};
+
             document.querySelectorAll('[data-drop]').forEach(this.registerDroppable.bind(this));
         }
 
@@ -226,7 +228,8 @@
             if(this.clone.classList.contains('block')){
                 this.registerDroppable(this.clone);
             }
-            new EditableElement(this.clone);
+            console.log(this.clone.selectorText);
+            this.elements[this.clone.selectorText] = new EditableElement(this);
             this.clone = null;
 
         }
@@ -241,21 +244,40 @@
             e.preventDefault();
             e.currentTarget.classList.remove('dragover');
         }
+
+        unSelect(){
+            for(let i in this.elements){
+                if(!this.elements.hasOwnProperty(i)){
+                    continue;
+                }
+                this.elements[i].unSelect();
+            }
+        }
     }
 
     class EditableElement{
-        constructor(pElement){
+        constructor(pInventory){
             this.magnet_treshold = 5;
             this.guides = [];
-            this.domElement = pElement;
-            this.domElement.dataset.type = pElement.className;
+            this.inventory = pInventory;
+            this.domElement = pInventory.clone;
+            this.domElement.dataset.type = this.domElement.className;
             this.domElement.classList.add('element');
             this._mouseMovehandler = this.mouseMoveHandler.bind(this);
             this._mouseUpHandler = this.mouseUpHandler.bind(this);
+            this._resizeHandler = this.resizeHandler.bind(this);
+            this._resizedHandler = this.resizedHandler.bind(this);
+            this._unselectHandler = (e)=>{
+                if(e.target === this.domElement){
+                    return;
+                }
+                this.unSelect();
+            };
             this.domElement.addEventListener('mousedown', this.mouseDownHandler.bind(this));
         }
 
         mouseDownHandler(e){
+            console.log("element down");
             this.ref = {x:e.layerX, y:e.layerY};
             let rect = this.domElement.getBoundingClientRect();
             let withinMoveZone = (this.ref.x < (rect.width - 10))&&(this.ref.y < (rect.height - 10));
@@ -265,7 +287,7 @@
                 this.domElement.classList.remove("selected");
                 return;
             }
-            document.querySelectorAll(".element.selected").forEach((el)=>el.classList.remove("selected"));
+            this.inventory.unSelect();
             this.domElement.classList.add("selected");
             document.addEventListener('mousemove', this._mouseMovehandler);
             document.addEventListener('mouseup', this._mouseUpHandler);
@@ -284,7 +306,6 @@
         }
 
         createGuide(pStyle){
-            this.guides.push(pStyle);
             let d = document.createElement('div');
             d.classList.add('guide');
             this.domElement.parentNode.appendChild(d);
@@ -299,6 +320,8 @@
                 }
                 d.style[k] = pStyle[k]+"px";
             }
+            pStyle.element = d;
+            this.guides.push(pStyle);
         }
 
         mouseMoveHandler(e){
@@ -311,26 +334,29 @@
             }
             val.x = Math.max(val.x, 0);
             val.y = Math.max(val.y, 0);
-            val.x = Math.min(val.x, parentRect.width - this.domElement.getBoundingClientRect().width);
+            val.x = Math.min(val.x, parentRect.width - rect.width);
             this.guides.forEach((g)=>{
                 if(g.left){
-                    val.x = this.deductConstraint(g.left, val.x, this.domElement.offsetWidth);
+                    val.x = this.deductConstraint(g.left, val.x, this.domElement.offsetWidth, g);
                 }
                 if(g.top){
-                    val.y = this.deductConstraint(g.top, val.y, this.domElement.offsetHeight);
+                    val.y = this.deductConstraint(g.top, val.y, this.domElement.offsetHeight, g);
                 }
             });
             this.domElement.style.left = Math.round(val.x)+"px";
             this.domElement.style.top = Math.round(val.y)+"px";
         }
 
-        deductConstraint(pProp, pVal, pSizeVal){
+        deductConstraint(pProp, pVal, pSizeVal, pGuide){
             if((pVal < (pProp+this.magnet_treshold)) && (pVal > (pProp-this.magnet_treshold))){
+                pGuide.element.style.background = "red";
                 return pProp;
             }
             if((pVal + pSizeVal) < (pProp + this.magnet_treshold) && (pVal + pSizeVal)>(pProp-this.magnet_treshold)){
+                pGuide.element.style.background = "red";
                 return pProp - pSizeVal;
             }
+            pGuide.element.style.background = "transparent";
             return pVal;
         }
 
@@ -343,11 +369,86 @@
             });
             this.guides = [];
             if(this.domElement.classList.contains("selected")){
+                this.createPoints();
                 document.dispatchEvent(new CustomEvent(EditableElementEvent.SELECT, {detail:{element:this.domElement}}));
+                this.domElement.parentNode.addEventListener('mouseup', this._unselectHandler, true);
             }else{
-                document.dispatchEvent(new CustomEvent(EditableElementEvent.UNSELECT, {detail:{element:this.domElement}}));
+                this.unSelect();
             }
             document.querySelectorAll('.dragover').forEach((el)=>el.classList.remove('dragover'));
+        }
+
+        unSelect(){
+            console.log("unselect");
+            this.domElement.parentNode.removeEventListener('mouseup', this._unselectHandler, true);
+            this.domElement.classList.remove("selected");
+            this.domElement.querySelectorAll('.point')?.forEach((pEl)=>pEl.remove());
+            document.dispatchEvent(new CustomEvent(EditableElementEvent.UNSELECT, {detail:{element:this.domElement}}));
+        }
+
+        createPoints(){
+            const createEl = (pClasses)=>{
+                let d = document.createElement('div');
+                d.classList.add(...pClasses);
+                this.domElement.appendChild(d);
+                return d;
+            }
+            createEl(['point', 'top', 'left']);
+            createEl(['point', 'top']);
+            createEl(['point', 'top', 'right']);
+            createEl(['point', 'left']);
+            createEl(['point', 'right']);
+            createEl(['point', 'bottom', 'left']);
+            createEl(['point', 'bottom']);
+            createEl(['point', 'bottom', 'right']);
+            this.domElement.querySelectorAll('.point').forEach((pPoint)=>{
+                pPoint.addEventListener('mousedown', (e)=>{
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    e.stopPropagation();
+                    this.ref = this.domElement.getBoundingClientRect();
+                    this.startingPoint = e.currentTarget;
+                    this.domElement.parentNode.removeEventListener('mouseup', this._unselectHandler, true);
+                    document.addEventListener('mousemove', this._resizeHandler, true);
+                    console.log("point down");
+                    document.addEventListener('mouseup', this._resizedHandler);
+                });
+            });
+        }
+
+        resizedHandler(e){
+            this.startingPoint = null;
+            document.removeEventListener('mouseup', this._resizedHandler);
+            document.removeEventListener('mousemove', this._resizeHandler, true);
+            this.domElement.parentNode.addEventListener('mouseup', this._unselectHandler, true);
+        }
+
+        resizeHandler(e){
+
+            let parentRect = this.domElement.parentNode.getBoundingClientRect();
+
+            let rect = this.domElement.getBoundingClientRect();
+            let diff = {
+                x: Math.round(e.pageX - rect.x),
+                y: Math.round(e.pageY - rect.y)
+            };
+
+            if(this.startingPoint.classList.contains('bottom')){
+                this.domElement.style.height = diff.y+'px';
+            }
+            if(this.startingPoint.classList.contains('right')){
+                this.domElement.style.width = diff.x+'px';
+            }
+            if(this.startingPoint.classList.contains('top')){
+                let nY = e.pageY - parentRect.y;
+                this.domElement.style.top = (nY)+'px';
+                this.domElement.style.height = (((this.ref.y + this.ref.height) - nY)-parentRect.y)+'px';
+            }
+            if(this.startingPoint.classList.contains('left')){
+                let nX = e.pageX - parentRect.x;
+                this.domElement.style.left = (nX)+'px';
+                this.domElement.style.width = (((this.ref.x + this.ref.width) - nX) - parentRect.x)+'px';
+            }
         }
     }
 
